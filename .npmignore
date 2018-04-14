@@ -1,0 +1,7 @@
+# project files
+.editorconfig
+.eslintignore
+.eslintrc.yml
+.gitignore
+.travis.yml
+tests
