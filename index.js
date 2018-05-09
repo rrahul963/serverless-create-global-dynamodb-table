@@ -9,15 +9,21 @@ const chalk = require('chalk')
  * @param {Object} cli Serverless cli object for console logging
  * @param {Object} creds AWS credentials
  */
-const createTable = async function createTable(region, tableName, setting, cli, creds) {
+const createAndTagTable = async function createAndTagTable(region, tableName, setting, tags, cli, creds) {
   cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Creating new table ${tableName} in ${region} region...`)}`)
   const dynamodb = new AWS.DynamoDB({
     credentials: creds,
     region,
   })
   try {
-    await dynamodb.createTable(setting).promise()
-    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Created new table ${tableName} in ${region} region...`)}`)
+    const createResp = await dynamodb.createTable(setting).promise()
+    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Created new table ${tableName} in ${region} region...`)}`);
+    const { TableArn } = createResp.TableDescription;
+    if (tags) {
+      cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`CAdding tags to table ${tableName} in ${region} region...`)}`);
+      await dynamodb.tagResource({ ResourceArn: TableArn, Tags: tags });
+    }
+
   } catch (error) {
     if (error.code === 'ResourceInUseException') {
       cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Table ${tableName} already exists in the region ${region}`)}`)
@@ -42,6 +48,7 @@ const createGlobalTable = async function createGlobalTable(
   region,
   tableName,
   newRegions,
+  tags,
   cli,
 ) {
   const dynamodb = new AWS.DynamoDB({
@@ -73,7 +80,7 @@ const createGlobalTable = async function createGlobalTable(
     },
   }
 
-  await Promise.all(newRegions.map(r => createTable(r, tableName, createTableParams, cli, creds)))
+  await Promise.all(newRegions.map(r => createAndTagTable(r, tableName, createTableParams, tags, cli, creds)))
 
   const replicationGroup = [{ RegionName: region }]
   newRegions.forEach(r => replicationGroup.push({ RegionName: r }))
@@ -123,6 +130,7 @@ const createGlobalDynamodbTable = async function createGlobalDynamodbTable(serve
               serverless.getProvider('aws').getRegion(),
               tableName,
               option.regions,
+              option.tags,
               serverless.cli,
             )
             return true
@@ -135,6 +143,7 @@ const createGlobalDynamodbTable = async function createGlobalDynamodbTable(serve
           serverless.getProvider('aws').getRegion(),
           option.tableName,
           option.regions,
+          option.tags,
           serverless.cli,
         )
       } else {

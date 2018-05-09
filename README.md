@@ -25,4 +25,9 @@ custom:
       - region-2
     - tableKey: 'TABLE_KEY' # Cloudformation output key name if the table is created as part of same serverless service
     - tableName: 'TABLE_NAME' # if table is not part of the service then specify the table name. If tableKey param exists then tableName is ignored.
+    - tags: # List of tags that needs to applied to the new table (optional)
+      - Key: tag-key
+        Value: tag-value
+      - Key: tag-key-2
+        Value: tag-value-2
 ```
