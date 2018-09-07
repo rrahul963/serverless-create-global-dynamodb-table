@@ -1,18 +1,20 @@
-# serverless-create-global-dynamodb-table
+# serverless-create-global-dynamodb-table-2
 [![serverless](http://public.serverless.com/badges/v3.svg)](http://www.serverless.com)
+
+This is a fork of serverless-create-global-dynamodb-table with additional bugfixes.
 
 A [serverless](http://www.serverless.com) plugin to _automatically_ creates dynamodb global table(s).
 The plugin will create the dynamodb table in the specified region(s) and setup sync between  primary and other table(s).
 
 ## Install
 
-`npm install --save-dev serverless-create-global-dynamodb-table`
+`npm install --save-dev serverless-create-global-dynamodb-table-2`
 
 Add the plugin to your `serverless.yml` file:
 
 ```yaml
 plugins:
-  - serverless-create-global-dynamodb-table
+  - serverless-create-global-dynamodb-table-2
 ```
 
 ## Configuration
