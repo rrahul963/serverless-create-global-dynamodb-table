@@ -16,6 +16,19 @@ const createAndTagTable = async function createAndTagTable(region, tableName, se
     region,
   })
   try {
+
+    try {
+      await dynamodb.describeTable({TableName: tableName}).promise();
+      cli.consoleLog(`CreateGlobalTable: ${chalk.yellow('Backup region table already exists in ${region}. Skipping creation...')}`);
+      return
+    }
+    catch (e) {
+      if (e.code !== 'ResourceNotFoundException') {
+        throw e
+      }
+      cli.consoleLog(`CreateGlobalTable: ${chalk.yellow('Backup region table doesnt exist yet in ${region}. Creating...')}`)
+    }
+
     const createResp = await dynamodb.createTable(setting).promise()
     cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Created new table ${tableName} in ${region} region...`)}`);
     const { TableArn } = createResp.TableDescription;

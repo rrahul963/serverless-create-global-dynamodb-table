@@ -1,7 +1,7 @@
 {
-  "name": "serverless-create-global-dynamodb-table",
-  "version": "1.1.0",
-  "description": "serverless plugin that would create global dynamodb tables for specified tables",
+  "name": "serverless-create-global-dynamodb-table-2",
+  "version": "1.0.1",
+  "description": "serverless plugin that creates global dynamodb tables",
   "main": "index.js",
   "scripts": {
     "precommit": "eslint .",
@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rrahul963/serverless-create-global-dynamodb-table.git"
+    "url": "git+https://github.com/johndww/serverless-create-global-dynamodb-table.git"
   },
   "keywords": [
     "serverless",
@@ -17,12 +17,12 @@
     "table",
     "dynamodb"
   ],
-  "author": "rahul.tulsian87@gmail.com",
+  "author": "delive@gmail.com",
   "license": "Apache 2.0",
   "bugs": {
-    "url": "https://github.com/rrahul963/serverless-create-global-dynamodb-table/issues"
+    "url": "https://github.com/johndww/serverless-create-global-dynamodb-table/issues"
   },
-  "homepage": "https://github.com/rrahul963/serverless-create-global-dynamodb-table#readme",
+  "homepage": "https://github.com/johndww/serverless-create-global-dynamodb-table#readme",
   "devDependencies": {
     "@types/chai": "^4.1.2",
     "@types/mocha": "^5.0.0",
