@@ -10,12 +10,24 @@ const chalk = require('chalk')
  * @param {Object} creds AWS credentials
  */
 const createAndTagTable = async function createAndTagTable(region, tableName, setting, tags, cli, creds) {
-  cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Creating new table ${tableName} in ${region} region...`)}`)
   const dynamodb = new AWS.DynamoDB({
     credentials: creds,
     region,
   })
   try {
+
+    try {
+      await dynamodb.describeTable({TableName: tableName}).promise();
+      cli.consoleLog(`CreateGlobalTable: ${chalk.yellow('Backup region table already exists in ${region}. Skipping creation...')}`);
+      return
+    }
+    catch (e) {
+      if (e.code !== 'ResourceNotFoundException') {
+        throw e
+      }
+      cli.consoleLog(`CreateGlobalTable: ${chalk.yellow('Backup region table doesnt exist yet in ${region}. Creating...')}`)
+    }
+
     const createResp = await dynamodb.createTable(setting).promise()
     cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Created new table ${tableName} in ${region} region...`)}`);
     const { TableArn } = createResp.TableDescription;
