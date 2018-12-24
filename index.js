@@ -17,13 +17,12 @@ const createAndTagTable = async function createAndTagTable(region, tableName, se
   })
   try {
     const createResp = await dynamodb.createTable(setting).promise()
-    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Created new table ${tableName} in ${region} region...`)}`);
-    const { TableArn } = createResp.TableDescription;
+    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Created new table ${tableName} in ${region} region...`)}`)
+    const { TableArn } = createResp.TableDescription
     if (tags) {
-      cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`CAdding tags to table ${tableName} in ${region} region...`)}`);
-      await dynamodb.tagResource({ ResourceArn: TableArn, Tags: tags });
+      cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`CAdding tags to table ${tableName} in ${region} region...`)}`)
+      await dynamodb.tagResource({ ResourceArn: TableArn, Tags: tags })
     }
-
   } catch (error) {
     if (error.code === 'ResourceInUseException') {
       cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Table ${tableName} already exists in the region ${region}`)}`)
@@ -164,8 +163,8 @@ class CreateGlobalDynamodbTable {
     this.serverless = serverless
     this.options = options
     this.hooks = {
-      'after:deploy:deploy': function () {
-        createGlobalDynamodbTable(serverless)
+      'after:deploy:deploy': async function () {
+        await createGlobalDynamodbTable(serverless)
       },
     }
   }
