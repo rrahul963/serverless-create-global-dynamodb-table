@@ -116,6 +116,7 @@ const createGlobalDynamodbTable = async function createGlobalDynamodbTable(serve
 
     const globalTablesOptions = serverless.service.custom.globalTables
     if (!globalTablesOptions || globalTablesOptions.length === 0) {
+      serverless.cli.consoleLog(`CreateGlobalTable: ${chalk.yellow('Global Table configuration missing, skipping creation...')}`)
       return
     }
     await Promise.all(globalTablesOptions.map((option) => {
