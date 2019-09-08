@@ -2,7 +2,7 @@
   "name": "serverless-create-global-dynamodb-table",
   "version": "1.1.2",
   "description": "serverless plugin that would create global dynamodb tables for specified tables",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
     "precommit": "eslint .",
     "test": "echo \"Error: no test specified\" && exit 1"

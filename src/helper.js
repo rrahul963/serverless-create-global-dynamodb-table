@@ -92,6 +92,11 @@ const createGlobalTable = async function createGlobalTable(
   cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Created global table setup for ${tableName}...`)}`)
 }
 
+const getCfnOutputs = async function getCfnOutputs(stackName, cfn) {
+  const resp = await cfn.describeStacks({ StackName: stackName }).promise();
+  return resp.Stacks[0].Outputs
+}
+
 /**
  * The create global table function.
  * This function will:
@@ -105,14 +110,17 @@ const createGlobalTable = async function createGlobalTable(
 const createGlobalDynamodbTable = async function createGlobalDynamodbTable(serverless) {
   try {
     serverless.cli.consoleLog(`CreateGlobalTable: ${chalk.yellow('Starting setting up global tables...')}`)
-    const awsCredentials = serverless.getProvider('aws').getCredentials()
+    const provider = serverless.getProvider('aws');
+    const awsCredentials = provider.getCredentials();
+    const region = provider.getRegion();
+    const serviceName = serverless.service.getServiceName();
+    const stage = serverless.getProvider('aws').getStage();
     const cfn = new AWS.CloudFormation({
       credentials: awsCredentials.credentials,
-      region: serverless.getProvider('aws').getRegion(),
+      region,
     })
-    const stackName = `${serverless.service.getServiceName()}-${serverless.getProvider('aws').getStage()}`
-    const resp = await cfn.describeStacks({ StackName: stackName }).promise()
-    const outputs = resp.Stacks[0].Outputs
+    const stackName = `${serviceName}-${stage}`;
+    const outputs = await getCfnOutputs(stackName, cfn);
 
     const globalTablesOptions = serverless.service.custom.globalTables
     if (!globalTablesOptions || globalTablesOptions.length === 0) {
@@ -120,23 +128,27 @@ const createGlobalDynamodbTable = async function createGlobalDynamodbTable(serve
       return
     }
     await Promise.all(globalTablesOptions.map((option) => {
+      let tableName;
       if (option.tableKey) {
-        outputs.some((output) => {
-          let tableName = ''
-          if (output.OutputKey === option.tableKey) {
-            tableName = output.OutputValue
-            createGlobalTable(
-              awsCredentials.credentials,
-              serverless.getProvider('aws').getRegion(),
-              tableName,
-              option.regions,
-              option.tags,
-              serverless.cli,
-            )
-            return true
-          }
-          return false
-        })
+        tableName = outputs.find(output => output.OutputKey === option.tableKey);
+        tableName = tableName.OutputValue;
+
+        // outputs.some((output) => {
+        //   let tableName = ''
+        //   if (output.OutputKey === option.tableKey) {
+        //     tableName = output.OutputValue
+        //     createGlobalTable(
+        //       awsCredentials.credentials,
+        //       serverless.getProvider('aws').getRegion(),
+        //       tableName,
+        //       option.regions,
+        //       option.tags,
+        //       serverless.cli,
+        //     )
+        //     return true
+        //   }
+        //   return false
+        // })
       } else if (option.tableName) {
         createGlobalTable(
           awsCredentials.credentials,
@@ -152,23 +164,12 @@ const createGlobalDynamodbTable = async function createGlobalDynamodbTable(serve
       return true
     }))
   } catch (error) {
-    serverless.cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Failed to setup global table. Error ${error.message || error}`)}`)
+    serverless.cli.consoleLog(`CreateGlobalTable: ${chalk.red(`Failed to setup global table. Error ${error.message || error}`)}`)
   }
 }
 
-/**
- * The class that will be used as serverless plugin.
- */
-class CreateGlobalDynamodbTable {
-  constructor(serverless, options) {
-    this.serverless = serverless
-    this.options = options
-    this.hooks = {
-      'after:deploy:deploy': async function () {
-        await createGlobalDynamodbTable(serverless)
-      },
-    }
-  }
+module.exports = {
+  createAndTagTable,
+  createGlobalDynamodbTable,
+  createGlobalTable,
 }
-
-module.exports = CreateGlobalDynamodbTable
