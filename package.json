@@ -4,6 +4,7 @@
   "description": "serverless plugin that would create global dynamodb tables for specified tables",
   "main": "src/index.js",
   "scripts": {
+    "coverage": "nyc --reporter=html npm run test-unit",
     "lint": "eslint .",
     "test-unit": "mocha test/unittest"
   },
@@ -24,8 +25,11 @@
   },
   "homepage": "https://github.com/rrahul963/serverless-create-global-dynamodb-table#readme",
   "devDependencies": {
+    "coveralls": "^3.0.6",
     "eslint": "^4.19.1",
+    "husky": "^3.0.5",
     "mocha": "^5.1.0",
+    "nyc": "^14.1.1",
     "should": "^13.2.3",
     "sinon": "^7.4.2"
   },
@@ -33,5 +37,11 @@
     "aws-sdk": "^2.224.1",
     "chalk": "^2.3.2",
     "lodash.get": "^4.4.2"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run lint",
+      "pre-push": "npm run test-unit"
+    }
   }
 }

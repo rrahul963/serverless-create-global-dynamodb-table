@@ -412,7 +412,57 @@ describe('test createGlobalTable function', () => {
       missingRegions: [],
       addingNewRegions: false
     }));
-    await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], false, serverless.cli);
+    await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], true, serverless.cli);
     sandbox.assert.notCalled(dynamodb.createGlobalTable);
+  });
+
+  it ('should create global table', async () => {
+    await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], true, serverless.cli);
+    sandbox.assert.calledOnce(dynamodb.createGlobalTable);
+  });
+
+  it ('should update the global table', async () => {
+    plugin.getRegionsToCreateGlobalTablesIn.restore();
+    sandbox.stub(plugin, 'getRegionsToCreateGlobalTablesIn').returns(Promise.resolve({
+      missingRegions: ['us-west-1'],
+      addingNewRegions: true
+    }));
+    await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], true, serverless.cli);
+    sandbox.assert.notCalled(dynamodb.createGlobalTable);
+    sandbox.assert.calledOnce(dynamodb.updateGlobalTable);
+  });
+
+  it ('should create the table when create stack is false', async () => {
+    await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], false, serverless.cli);
+    sandbox.assert.calledOnce(dynamodb.describeTable);
+  });
+});
+
+describe('test getTableNamesFromStack function', () => {
+  let cfn;
+  before(() => {
+    cfn = new AWS.CloudFormation();
+    sinon.stub(cfn, 'describeStackResources').returns({
+      promise: () => { return Promise.resolve({
+        StackResources: [
+          {
+            ResourceType: 'AWS::DynamoDB::Table',
+            PhysicalResourceId: 'test-table'
+          },
+          {
+            ResourceType: 'AWS::S3::Bucket',
+            PhysicalResourceId: 'test-bucket'
+          }
+        ]
+      }) }
+    });
+  });
+  after(() => {
+    cfn.describeStackResources.restore();
+  });
+  it ('should return test-table', async () => {
+    const resp = await plugin.getTableNamesFromStack(cfn, 'test-stack');
+    resp.should.have.length(1);
+    resp[0].should.eql('test-table');
   });
 });
