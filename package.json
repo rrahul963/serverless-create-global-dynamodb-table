@@ -31,6 +31,7 @@
   },
   "dependencies": {
     "aws-sdk": "^2.224.1",
-    "chalk": "^2.3.2"
+    "chalk": "^2.3.2",
+    "lodash.get": "^4.4.2"
   }
 }
