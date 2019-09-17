@@ -2,6 +2,7 @@
 service: test-global-table-creation
 frameworkVersion: '>=1.1.0 <2.0.0'
 plugins:
+  - serverless-attach-managed-policy
   - serverless-create-global-dynamodb-table
 
 provider:
@@ -11,26 +12,19 @@ provider:
   stage: ${opt:stage, 'dev'}
   tracing: true
   deploymentBucket:
-    name: ${file(./serverless.env.yml):${self:provider.stage}.S3_BUCKET_NAME}-${self:provider.stage}-${self:provider.region}
-  managedPolicyArns: ${file(./serverless.env.yml):${self:provider.stage}.MANAGED_POLICY_ARN}
+    name: das-deployment-packages-dev-us-west-2
+  managedPolicyArns: arn:aws:iam::403481480537:policy/appteam/fff000-iam-nonprod-wcm-01-TeamManagedPolicy-IP1WSES0IVD7
 
 custom:
   globalTables:
-  - regions: # list of regions in which you want to set up global tables
+    regions:
       - us-east-2
-    tableKey: 'TestTableName' # Cloudformation output key name if the table is created as part of same serverless service
-    tags: # List of tags that needs to applied to the new table (optional)
-      - Key: tag-key
-        Value: tag-value
-      - Key: tag-key-2
-        Value: tag-value-2
+      - us-east-1
 
 resources:
   Resources:
     TestTable:
       Type: 'AWS::DynamoDB::Table'
-      Condition: CreateTable
-      DeletionPolicy: Retain
       Properties:
         AttributeDefinitions:
           -
@@ -47,10 +41,99 @@ resources:
           WriteCapacityUnits: 5
         StreamSpecification:
           StreamViewType: NEW_AND_OLD_IMAGES
-        TableName: Test-DYnamodb-Table
+        TableName: Test-Dynamodb-Table
         Tags:
           - Key: scheduler-ddb-thresholdminmax
             Value: ''
+
+    WriteCapacityScalableTarget:
+      Type: AWS::ApplicationAutoScaling::ScalableTarget
+      Properties:
+        MaxCapacity: 5
+        MinCapacity: 5
+        ResourceId:
+          Fn::Join:
+          - /
+          - - table
+            - Ref: TestTable
+        RoleARN:
+          Fn::GetAtt: ScalingRole.Arn
+        ScalableDimension: dynamodb:table:WriteCapacityUnits
+        ServiceNamespace: dynamodb
+
+    ReadCapacityScalableTarget:
+      Type: AWS::ApplicationAutoScaling::ScalableTarget
+      Properties:
+        MaxCapacity: 5
+        MinCapacity: 5
+        ResourceId:
+          Fn::Join:
+          - /
+          - - table
+            - Ref: TestTable
+        RoleARN:
+          Fn::GetAtt: ScalingRole.Arn
+        ScalableDimension: dynamodb:table:ReadCapacityUnits
+        ServiceNamespace: dynamodb
+
+    ScalingRole:
+      Type: AWS::IAM::Role
+      Properties:
+        AssumeRolePolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            -
+              Effect: "Allow"
+              Principal:
+                Service:
+                  - application-autoscaling.amazonaws.com
+              Action:
+                - "sts:AssumeRole"
+        Path: "/"
+        Policies:
+          -
+            PolicyName: "root"
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                -
+                  Effect: "Allow"
+                  Action:
+                    - "dynamodb:DescribeTable"
+                    - "dynamodb:UpdateTable"
+                    - "cloudwatch:PutMetricAlarm"
+                    - "cloudwatch:DescribeAlarms"
+                    - "cloudwatch:GetMetricStatistics"
+                    - "cloudwatch:SetAlarmState"
+                    - "cloudwatch:DeleteAlarms"
+                  Resource: "*"
+
+    WriteScalingPolicy:
+      Type: AWS::ApplicationAutoScaling::ScalingPolicy
+      Properties:
+        PolicyName: WriteAutoScalingPolicy
+        PolicyType: TargetTrackingScaling
+        ScalingTargetId: !Ref WriteCapacityScalableTarget
+        TargetTrackingScalingPolicyConfiguration:
+          TargetValue: 50.0
+          ScaleInCooldown: 60
+          ScaleOutCooldown: 60
+          PredefinedMetricSpecification:
+            PredefinedMetricType: DynamoDBWriteCapacityUtilization
+
+    ReadScalingPolicy:
+      Type: AWS::ApplicationAutoScaling::ScalingPolicy
+      Properties:
+        PolicyName: ReadAutoScalingPolicy
+        PolicyType: TargetTrackingScaling
+        ScalingTargetId: !Ref ReadCapacityScalableTarget
+        TargetTrackingScalingPolicyConfiguration:
+          TargetValue: 50.0
+          ScaleInCooldown: 60
+          ScaleOutCooldown: 60
+          PredefinedMetricSpecification:
+            PredefinedMetricType: DynamoDBReadCapacityUtilization
+
 
   Outputs:
     TestTableName:

@@ -8,7 +8,7 @@ class CreateGlobalDynamodbTable {
     this.serverless = serverless
     this.options = options
     this.hooks = {
-      'after:deploy:deploy': () => helper.addApiKey(createGlobalDynamodbTable, options)
+      'after:deploy:deploy': () => helper.createGlobalDynamodbTable(serverless)
     }
   }
 }
