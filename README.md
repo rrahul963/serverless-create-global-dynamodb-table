@@ -1,5 +1,5 @@
 # serverless-create-global-dynamodb-table
-[![serverless](http://public.serverless.com/badges/v3.svg)](http://www.serverless.com)
+[![serverless](http://public.serverless.com/badges/v3.svg)](http://www.serverless.com) [![Build Status](https://travis-ci.org/rrahul963/serverless-create-global-dynamodb-table.svg?branch=master)](https://travis-ci.org/rrahul963/serverless-create-global-dynamodb-table.svg?branch=master) [![npm version](https://badge.fury.io/js/serverless-create-global-dynamodb-table.svg)](https://badge.fury.io/js/serverless-create-global-dynamodb-table)
 
 A [serverless](http://www.serverless.com) plugin to _automatically_ creates [dynamodb global table(s)](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GlobalTables.html).
 
@@ -28,4 +28,10 @@ custom:
 ```
 
 _NOTE_: When creating global tables with `createStack: false`, any update the source table config is not replicated to global tables.
+
+## Revisions
+* 2.0.0
+  - Updated the package to deploy the service stack in the new region(s) by default
+  - Added support to setup auto-scaling on global tables when not using create stack feature.
+  - Added unit-tests
 

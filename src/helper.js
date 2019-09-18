@@ -34,6 +34,7 @@ const sleep = function sleep(ms) {
 const checkStackCreateUpdateStatus = async function checkStackCreateUpdateStatus(cfn, stackName, region, cli) {
   cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Checking cloudformation stack ${stackName} status in ${region}...`)}`);
   let status;
+  let dotPrinted = false;
   while (TRUE) {
     const resp = await cfn.describeStacks({
       StackName: stackName
@@ -42,10 +43,13 @@ const checkStackCreateUpdateStatus = async function checkStackCreateUpdateStatus
       status = resp.Stacks[0].StackStatus;
       break;
     }
-    await sleep(5000);
     cli.printDot();
+    dotPrinted = true;
+    await sleep(5000);
   }
-  cli.consoleLog('\n');
+  if (dotPrinted) {
+    cli.consoleLog('\n');
+  }
   if (status.includes('ROLLBACK')) {
     cli.consoleLog(`CreateGlobalTable: ${chalk.red(`Failed to create/update the stack ${stackName} in ${region}... \n
     Please check the stack status in console and retry.`)}`);
