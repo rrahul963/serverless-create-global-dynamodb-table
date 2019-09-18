@@ -169,11 +169,112 @@ describe('test createUpdateCfnStack function', () => {
       sinon.stub(cfn, 'updateStack').returns(updateStackPromise);
       sinon.stub(plugin, 'checkStackCreateUpdateStatus').returns(Promise.resolve(true));
     });
+    after(() => {
+      cfn.createStack.restore();
+      cfn.updateStack.restore();
+      plugin.checkStackCreateUpdateStatus.restore();
+    });
     it ('should update the stack', async () => {
       await plugin.createUpdateCfnStack(cfn, {}, 'test-stack', 'us-west-2', serverless.cli);
       sinon.assert.calledOnce(plugin.checkStackCreateUpdateStatus);
       sinon.assert.calledOnce(cfn.createStack);
       sinon.assert.calledOnce(cfn.updateStack);
+    });
+  });
+
+  describe('createStack fails', () => {
+    const cfn = new AWS.CloudFormation();
+    before(() => {
+      const error = new Error('forced error');
+      error.code = 'SomeRandomException';
+      const createStackPromise =  {
+        promise: () => { return Promise.reject(error) }
+      };
+      const updateStackPromise = {
+        promise: () => sinon.fake.resolves()
+      }
+      // cfn.createStack = () => { return createStackPromise };
+      sinon.stub(cfn, 'createStack').returns(createStackPromise);
+      sinon.stub(cfn, 'updateStack').returns(updateStackPromise);
+      sinon.stub(plugin, 'checkStackCreateUpdateStatus').returns(Promise.resolve(true));
+    });
+    after(() => {
+      cfn.createStack.restore();
+      cfn.updateStack.restore();
+      plugin.checkStackCreateUpdateStatus.restore();
+    });
+    it ('should update the stack', async () => {
+      try {
+        await plugin.createUpdateCfnStack(cfn, {}, 'test-stack', 'us-west-2', serverless.cli);
+      } catch (err) {
+        err.code.should.eql('SomeRandomException');
+      }
+    });
+  });
+
+  describe('update stack scenario throws ValidationError', () => {
+    const cfn = new AWS.CloudFormation();
+    before(() => {
+      const error = new Error('forced error');
+      error.code = 'AlreadyExistsException';
+      const createStackPromise =  {
+        promise: () => { return Promise.reject(error) }
+      };
+      const updateError = new Error('forced error');
+      updateError.code = 'ValidationError';
+      const updateStackPromise = {
+        promise: () => { return Promise.reject(updateError) }
+      }
+      // cfn.createStack = () => { return createStackPromise };
+      sinon.stub(cfn, 'createStack').returns(createStackPromise);
+      sinon.stub(cfn, 'updateStack').returns(updateStackPromise);
+      sinon.stub(plugin, 'checkStackCreateUpdateStatus').returns(Promise.resolve(true));
+    });
+    after(() => {
+      cfn.createStack.restore();
+      cfn.updateStack.restore();
+      plugin.checkStackCreateUpdateStatus.restore();
+    });
+    it ('should update the stack', async () => {
+      await plugin.createUpdateCfnStack(cfn, {}, 'test-stack', 'us-west-2', serverless.cli);
+      sinon.assert.calledOnce(plugin.checkStackCreateUpdateStatus);
+      sinon.assert.calledOnce(cfn.createStack);
+      sinon.assert.calledOnce(cfn.updateStack);
+    });
+  });
+
+  describe('update stack scenario throws random error', () => {
+    const cfn = new AWS.CloudFormation();
+    before(() => {
+      const error = new Error('forced error');
+      error.code = 'AlreadyExistsException';
+      const createStackPromise =  {
+        promise: () => { return Promise.reject(error) }
+      };
+      const updateError = new Error('forced error');
+      updateError.code = 'SomeError';
+      const updateStackPromise = {
+        promise: () => { return Promise.reject(updateError) }
+      }
+      // cfn.createStack = () => { return createStackPromise };
+      sinon.stub(cfn, 'createStack').returns(createStackPromise);
+      sinon.stub(cfn, 'updateStack').returns(updateStackPromise);
+      sinon.stub(plugin, 'checkStackCreateUpdateStatus').returns(Promise.resolve(true));
+    });
+    after(() => {
+      cfn.createStack.restore();
+      cfn.updateStack.restore();
+      plugin.checkStackCreateUpdateStatus.restore();
+    });
+    it ('should update the stack', async () => {
+      try {
+        await plugin.createUpdateCfnStack(cfn, {}, 'test-stack', 'us-west-2', serverless.cli);
+      } catch (err) {
+        sinon.assert.notCalled(plugin.checkStackCreateUpdateStatus);
+        sinon.assert.calledOnce(cfn.createStack);
+        sinon.assert.calledOnce(cfn.updateStack);
+        err.code.should.eql('SomeError');
+      }
     });
   });
 });
@@ -272,6 +373,39 @@ describe('test createNewTableAndSetScalingPolicy function', () => {
       sinon.assert.calledTwice(aas.registerScalableTarget);sinon.assert.calledTwice(aas.putScalingPolicy);
     });
   });
+
+  describe('createTable fails with random error', () => {
+    const dynamodb = new AWS.DynamoDB();
+    const aas = new AWS.ApplicationAutoScaling();
+    before(() => {
+      const error = new Error('forced error');
+      error.code = 'RandomError';
+      const createTablePromise =  {
+        promise: () => { return Promise.reject(error) }
+      };
+      sinon.stub(dynamodb, 'createTable').returns(createTablePromise);
+      sinon.stub(aas, 'registerScalableTarget').returns({
+        promise: () => { return Promise.resolve() }
+      });
+      sinon.stub(aas, 'putScalingPolicy').returns({
+        promise: () => { return Promise.resolve() }
+      });
+    });
+    after(() => {
+      dynamodb.createTable.restore();
+      aas.registerScalableTarget.restore();
+      aas.putScalingPolicy.restore();
+    });
+    it ('should return without creating table', async () => {
+      try {
+        await plugin.createNewTableAndSetScalingPolicy(aas, dynamodb, {}, scalingPolicies, 'test-table', 'us-west-2', serverless.cli);
+      } catch (err) {
+        sinon.assert.calledOnce(dynamodb.createTable);
+        sinon.assert.notCalled(aas.registerScalableTarget);sinon.assert.notCalled(aas.putScalingPolicy);
+        err.code.should.eql('RandomError');
+      }
+    });
+  });
 });
 
 describe('test getRegionsToCreateGlobalTablesIn function', () =>{
@@ -296,6 +430,26 @@ describe('test getRegionsToCreateGlobalTablesIn function', () =>{
       resp.missingRegions.should.have.length(2);
       resp.missingRegions.should.eql(newRegions);
       resp.addingNewRegions.should.eql(false);
+    });
+  });
+
+  describe('describeGlobalTable fails with random error', () => {
+    before(() => {
+      const error = new Error('forced error');
+      error.code = 'RandomError';
+      sinon.stub(dynamodb, 'describeGlobalTable').returns({
+        promise: () => { return Promise.reject(error)}
+      });
+    });
+    after(() => {
+      dynamodb.describeGlobalTable.restore();
+    });
+    it ('should return all the new regions', async () => {
+      try {
+        await plugin.getRegionsToCreateGlobalTablesIn(dynamodb, 'us-west-2', newRegions, 'test-table', serverless.cli);
+      } catch (err) {
+        err.code.should.eql('RandomError');
+      }
     });
   });
 
