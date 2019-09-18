@@ -44,8 +44,8 @@ const checkStackCreateUpdateStatus = async function checkStackCreateUpdateStatus
     }
     await sleep(5000);
     cli.printDot();
-    cli.consoleLog('\n');
   }
+  cli.consoleLog('\n');
   if (status.includes('ROLLBACK')) {
     cli.consoleLog(`CreateGlobalTable: ${chalk.red(`Failed to create/update the stack ${stackName} in ${region}... \n
     Please check the stack status in console and retry.`)}`);
