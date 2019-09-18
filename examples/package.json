@@ -1,0 +1,18 @@
+{
+  "name": "exmaples",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "serverless-attach-managed-policy": "0.0.7",
+    "serverless-create-global-dynamodb-table": "git+https://github.com/rrahul963/serverless-create-global-dynamodb-table.git#refactor"
+  },
+  "dependencies": {
+    "lodash.get": "^4.4.2"
+  }
+}
