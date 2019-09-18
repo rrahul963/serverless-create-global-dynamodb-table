@@ -1,5 +1,5 @@
 # serverless-create-global-dynamodb-table
-[![serverless](http://public.serverless.com/badges/v3.svg)](http://www.serverless.com) [![Build Status](https://travis-ci.org/rrahul963/serverless-create-global-dynamodb-table.svg?branch=master)](https://travis-ci.org/rrahul963/serverless-create-global-dynamodb-table.svg?branch=master) [![npm version](https://badge.fury.io/js/serverless-create-global-dynamodb-table.svg)](https://badge.fury.io/js/serverless-create-global-dynamodb-table)
+[![serverless](http://public.serverless.com/badges/v3.svg)](http://www.serverless.com) [![Build Status](https://travis-ci.org/rrahul963/serverless-create-global-dynamodb-table.svg?branch=master)](https://travis-ci.org/rrahul963/serverless-create-global-dynamodb-table.svg?branch=master) [![npm version](https://badge.fury.io/js/serverless-create-global-dynamodb-table.svg)](https://badge.fury.io/js/serverless-create-global-dynamodb-table) [![Coverage Status](https://coveralls.io/repos/github/rrahul963/serverless-create-global-dynamodb-table/badge.svg?branch=master)](https://coveralls.io/github/rrahul963/serverless-create-global-dynamodb-table?branch=master)
 
 A [serverless](http://www.serverless.com) plugin to _automatically_ creates [dynamodb global table(s)](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/GlobalTables.html).
 
