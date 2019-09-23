@@ -5,6 +5,8 @@ const AWS = require('aws-sdk');
 const plugin = require('../../src/helper');
 
 const TIMEOUT = 10000;
+const DELETEACTION = 'RemoveGlobalTable';
+const CREATEACTION = 'CreateGlobalTable';
 const provider = {
   getCredentials: () => {
     return {
@@ -91,8 +93,8 @@ describe('test createGlobalDynamodbTable function', () => {
   }).timeout(TIMEOUT);
 });
 
-describe('test checkStackCreateUpdateStatus function', () => {
-  it ('should return true', async () => {
+describe('test checkStackStatus function', () => {
+  it ('shuold create stack', async () => {
     const cfnMockPromise = {
       promise: sinon.fake.resolves({
         Stacks: [
@@ -105,11 +107,10 @@ describe('test checkStackCreateUpdateStatus function', () => {
     const cfnMock = {
       describeStacks: () => { return cfnMockPromise }
     };
-    const resp = await plugin.checkStackCreateUpdateStatus(cfnMock, 'test-stack', 'us-west-2', serverless.cli);
-    resp.should.eql(true);
+    await plugin.checkStackStatus(cfnMock, 'test-stack', 'us-west-2', CREATEACTION, serverless.cli);
   }).timeout(TIMEOUT);
 
-  it ('should return false', async () => {
+  it ('create stack failed', async () => {
     const cfnMockPromise = {
       promise: sinon.fake.resolves({
         Stacks: [
@@ -122,8 +123,23 @@ describe('test checkStackCreateUpdateStatus function', () => {
     const cfnMock = {
       describeStacks: () => { return cfnMockPromise }
     };
-    const resp = await plugin.checkStackCreateUpdateStatus(cfnMock, 'test-stack', 'us-west-2', serverless.cli);
-    resp.should.eql(false);
+    try {
+      await plugin.checkStackStatus(cfnMock, 'test-stack', 'us-west-2', CREATEACTION, serverless.cli);
+    } catch (err) {
+      err.message.should.eql('Stack creation/updste failed in region us-west-2...');
+    }    
+  }).timeout(TIMEOUT);
+
+  it ('delete stack', async () => {
+    const error = new Error('some error');
+    error.code = 'ValidationError';
+    const cfnMockPromise = {
+      promise: sinon.fake.rejects(error)
+    };
+    const cfnMock = {
+      describeStacks: () => { return cfnMockPromise }
+    };
+    await plugin.checkStackStatus(cfnMock, 'test-stack', 'us-west-2', DELETEACTION, serverless.cli); 
   }).timeout(TIMEOUT);
 });
 
@@ -139,16 +155,16 @@ describe('test createUpdateCfnStack function', () => {
       }
       sinon.stub(cfn, 'createStack').returns(createStackPromise);
       sinon.stub(cfn, 'updateStack').returns(updateStackPromise);
-      sinon.stub(plugin, 'checkStackCreateUpdateStatus').returns(Promise.resolve(true));
+      sinon.stub(plugin, 'checkStackStatus').returns(Promise.resolve(true));
     });
     after(() => {
       cfn.createStack.restore();
       cfn.updateStack.restore();
-      plugin.checkStackCreateUpdateStatus.restore();
+      plugin.checkStackStatus.restore();
     });
     it ('should create the stack', async () => {
       await plugin.createUpdateCfnStack(cfn, {}, 'test-stack', 'us-west-2', serverless.cli);
-      sinon.assert.calledOnce(plugin.checkStackCreateUpdateStatus);
+      sinon.assert.calledOnce(plugin.checkStackStatus);
       sinon.assert.calledOnce(cfn.createStack);
     });
   });
@@ -167,16 +183,16 @@ describe('test createUpdateCfnStack function', () => {
       // cfn.createStack = () => { return createStackPromise };
       sinon.stub(cfn, 'createStack').returns(createStackPromise);
       sinon.stub(cfn, 'updateStack').returns(updateStackPromise);
-      sinon.stub(plugin, 'checkStackCreateUpdateStatus').returns(Promise.resolve(true));
+      sinon.stub(plugin, 'checkStackStatus').returns(Promise.resolve(true));
     });
     after(() => {
       cfn.createStack.restore();
       cfn.updateStack.restore();
-      plugin.checkStackCreateUpdateStatus.restore();
+      plugin.checkStackStatus.restore();
     });
     it ('should update the stack', async () => {
       await plugin.createUpdateCfnStack(cfn, {}, 'test-stack', 'us-west-2', serverless.cli);
-      sinon.assert.calledOnce(plugin.checkStackCreateUpdateStatus);
+      sinon.assert.calledOnce(plugin.checkStackStatus);
       sinon.assert.calledOnce(cfn.createStack);
       sinon.assert.calledOnce(cfn.updateStack);
     });
@@ -196,12 +212,12 @@ describe('test createUpdateCfnStack function', () => {
       // cfn.createStack = () => { return createStackPromise };
       sinon.stub(cfn, 'createStack').returns(createStackPromise);
       sinon.stub(cfn, 'updateStack').returns(updateStackPromise);
-      sinon.stub(plugin, 'checkStackCreateUpdateStatus').returns(Promise.resolve(true));
+      sinon.stub(plugin, 'checkStackStatus').returns(Promise.resolve(true));
     });
     after(() => {
       cfn.createStack.restore();
       cfn.updateStack.restore();
-      plugin.checkStackCreateUpdateStatus.restore();
+      plugin.checkStackStatus.restore();
     });
     it ('should update the stack', async () => {
       try {
@@ -228,16 +244,16 @@ describe('test createUpdateCfnStack function', () => {
       // cfn.createStack = () => { return createStackPromise };
       sinon.stub(cfn, 'createStack').returns(createStackPromise);
       sinon.stub(cfn, 'updateStack').returns(updateStackPromise);
-      sinon.stub(plugin, 'checkStackCreateUpdateStatus').returns(Promise.resolve(true));
+      sinon.stub(plugin, 'checkStackStatus').returns(Promise.resolve(true));
     });
     after(() => {
       cfn.createStack.restore();
       cfn.updateStack.restore();
-      plugin.checkStackCreateUpdateStatus.restore();
+      plugin.checkStackStatus.restore();
     });
     it ('should update the stack', async () => {
       await plugin.createUpdateCfnStack(cfn, {}, 'test-stack', 'us-west-2', serverless.cli);
-      sinon.assert.calledOnce(plugin.checkStackCreateUpdateStatus);
+      sinon.assert.calledOnce(plugin.checkStackStatus);
       sinon.assert.calledOnce(cfn.createStack);
       sinon.assert.calledOnce(cfn.updateStack);
     });
@@ -259,18 +275,18 @@ describe('test createUpdateCfnStack function', () => {
       // cfn.createStack = () => { return createStackPromise };
       sinon.stub(cfn, 'createStack').returns(createStackPromise);
       sinon.stub(cfn, 'updateStack').returns(updateStackPromise);
-      sinon.stub(plugin, 'checkStackCreateUpdateStatus').returns(Promise.resolve(true));
+      sinon.stub(plugin, 'checkStackStatus').returns(Promise.resolve(true));
     });
     after(() => {
       cfn.createStack.restore();
       cfn.updateStack.restore();
-      plugin.checkStackCreateUpdateStatus.restore();
+      plugin.checkStackStatus.restore();
     });
     it ('should update the stack', async () => {
       try {
         await plugin.createUpdateCfnStack(cfn, {}, 'test-stack', 'us-west-2', serverless.cli);
       } catch (err) {
-        sinon.assert.notCalled(plugin.checkStackCreateUpdateStatus);
+        sinon.assert.notCalled(plugin.checkStackStatus);
         sinon.assert.calledOnce(cfn.createStack);
         sinon.assert.calledOnce(cfn.updateStack);
         err.code.should.eql('SomeError');
@@ -620,3 +636,140 @@ describe('test getTableNamesFromStack function', () => {
     resp[0].should.eql('test-table');
   });
 });
+
+describe('test removeStack function', () => {
+  let cfn;
+  before(() => {
+    cfn = new AWS.CloudFormation();
+    sinon.stub(cfn, 'deleteStack').returns({
+      promise: () => { return Promise.resolve() }
+    });
+    sinon.stub(plugin, 'checkStackStatus').returns(Promise.resolve());
+  });
+  after(() => {
+    cfn.deleteStack.restore();
+  });
+  it ('should delete the stack', async () => {
+    await plugin.removeStack(cfn, 'test-stck', 'us-west-2', serverless.cli);
+  });
+});
+
+describe('test deleteTablesFromRegion function', () => {
+  let dynamodb;
+  before(() => {
+    dynamodb = new AWS.DynamoDB();
+    sinon.stub(dynamodb, 'deleteTable').returns({
+      promise: () => { return Promise.resolve() }
+    });
+  });
+  after(() => {
+    dynamodb.deleteTable.restore();
+  });
+  it ('should delete tables', async () => {
+    const tableNames = ['a', 'b'];
+    await plugin.deleteTablesFromRegion(dynamodb, tableNames, 'us-west-2', serverless.cli);
+    sinon.assert.calledTwice(dynamodb.deleteTable);
+  });
+});
+
+describe('test removeGlobalTable function', () => {
+  const sandbox = sinon.createSandbox();
+  beforeEach(() => {
+    serverless.service.custom.globalTables = {};
+    sandbox.stub(plugin, 'getTableNamesFromStack').returns(Promise.resolve([
+      'table-1',
+      'table-2'
+    ]));
+    sandbox.stub(plugin, 'deleteTablesFromRegion').returns(Promise.resolve());
+    sandbox.stub(plugin, 'removeStack').returns(Promise.resolve());
+  });
+  afterEach(() => {
+    sandbox.restore();
+  });
+
+  it ('should do nothing if globalTable config missing', async () => {
+    await plugin.removeGlobalTable(serverless);
+    sandbox.assert.notCalled(plugin.getTableNamesFromStack);
+    sandbox.assert.notCalled(plugin.deleteTablesFromRegion);
+    sandbox.assert.notCalled(plugin.removeStack);
+  });
+
+  it ('should do nothing if no tables created as part of stack', async () => {
+    serverless.service.custom.globalTables.createStack = false;
+    plugin.getTableNamesFromStack.restore();
+    sandbox.stub(plugin, 'getTableNamesFromStack').returns(Promise.resolve([]));
+    await plugin.removeGlobalTable(serverless);
+    sandbox.assert.calledOnce(plugin.getTableNamesFromStack);
+    sandbox.assert.notCalled(plugin.deleteTablesFromRegion);
+    sandbox.assert.notCalled(plugin.removeStack);
+  });
+
+  it ('should delete tables from each region', async () => {
+    serverless.service.custom.globalTables.createStack = false;
+    serverless.service.custom.globalTables.regions = [
+      'us-west-2',
+      'us-east-2'
+    ];
+    await plugin.removeGlobalTable(serverless);
+    sandbox.assert.calledOnce(plugin.getTableNamesFromStack);
+    sandbox.assert.callCount(plugin.deleteTablesFromRegion, 2);
+    sandbox.assert.notCalled(plugin.removeStack);
+  });
+
+  it ('should delete stack from each region', async () => {
+    serverless.service.custom.globalTables.regions = [
+      'us-west-2',
+      'us-east-2'
+    ];
+    await plugin.removeGlobalTable(serverless);
+    sandbox.assert.notCalled(plugin.getTableNamesFromStack);
+    sandbox.assert.notCalled(plugin.deleteTablesFromRegion);
+    sandbox.assert.calledTwice(plugin.removeStack);
+  });
+
+  it ('should throw error if remove stack fails', async () => {
+    serverless.service.custom.globalTables.regions = [
+      'us-west-2',
+      'us-east-2'
+    ];
+    plugin.removeStack.restore();
+    sandbox.stub(plugin, 'removeStack').returns(Promise.reject('failed'));
+    try {
+      await plugin.removeGlobalTable(serverless);
+    } catch (err) {
+      sandbox.assert.notCalled(plugin.getTableNamesFromStack);
+      sandbox.assert.notCalled(plugin.deleteTablesFromRegion);
+      err.should.eql('failed');
+    }    
+  });
+
+  it ('should throw error if getTablesFromStack fails', async () => {
+    serverless.service.custom.globalTables.regions = [
+      'us-west-2',
+      'us-east-2'
+    ];
+    plugin.getTableNamesFromStack.restore();
+    sandbox.stub(plugin, 'getTableNamesFromStack').returns(Promise.reject('failed'));
+    try {
+      await plugin.removeGlobalTable(serverless);
+    } catch (err) {
+      err.should.eql('failed');
+    }    
+  });
+
+  it ('should throw error if deleteTables fails', async () => {
+    serverless.service.custom.globalTables.regions = [
+      'us-west-2',
+      'us-east-2'
+    ];
+    plugin.deleteTablesFromRegion.restore();
+    sandbox.stub(plugin, 'deleteTablesFromRegion').returns(Promise.reject('failed'));
+    try {
+      await plugin.removeGlobalTable(serverless);
+    } catch (err) {
+      err.should.eql('failed');
+    }    
+  });
+});
+
+

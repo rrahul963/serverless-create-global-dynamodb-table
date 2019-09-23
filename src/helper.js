@@ -5,8 +5,8 @@ const get = require('lodash.get');
 const WRITEAUOTSCALINGPOLICY = 'WriteAutoScalingPolicy';
 const READAUOTSCALINGPOLICY = 'ReadAutoScalingPolicy';
 const TRUE = true;
-const DELETEACTION = 'delete';
-const CREATEACTION = 'create';
+const DELETEACTION = 'RemoveGlobalTable';
+const CREATEACTION = 'CreateGlobalTable';
 
 const STACKCOMPLETESTATUSES = [
   'CREATE_COMPLETE',
@@ -32,14 +32,11 @@ const sleep = function sleep(ms) {
  * @param {string} stackName Cloudformation stack name
  * @param {string} region AWS region
  * @param {Object} cli Serverless cli object
+ * @param {string} action create/update or delete action
  * @returns {boolean} True if stack is created/updated successfully, else false.
  */
-const checkStackCreateUpdateStatus = async function checkStackCreateUpdateStatus(cfn, stackName, region, action, cli) {
-  if (action === CREATEACTION) {
-    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Checking cloudformation stack ${stackName} status in ${region}...`)}`);
-  } else {
-    cli.consoleLog(`RemoveGlobalTable: ${chalk.yellow(`Checking cloudformation stack ${stackName} status in ${region}...`)}`);
-  }
+const checkStackStatus = async function checkStackStatus(cfn, stackName, region, action, cli) {
+  cli.consoleLog(`${action}: ${chalk.yellow(`Checking cloudformation stack ${stackName} status in ${region}...`)}`);
   let status;
   let dotPrinted = false;
   while (TRUE) {
@@ -71,7 +68,7 @@ const checkStackCreateUpdateStatus = async function checkStackCreateUpdateStatus
     Please check the stack status in console and retry.`)}`);
     throw new Error(`Stack creation/updste failed in region ${region}...`);
   }
-  return true;
+  cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Cloudformation stack ${stackName} successfully created/updated in ${region}...`)}`);
 };
 
 /**
@@ -113,10 +110,7 @@ const createUpdateCfnStack = async function createUpdateCfnStack(cfn, template, 
       }
     }
   }
-  const stackSuccess = await module.exports.checkStackCreateUpdateStatus(cfn, stackName, region, cli);
-  if (stackSuccess) {
-    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Cloudformation stack ${stackName} successfully created/updated in ${region}...`)}`);
-  }
+  await module.exports.checkStackStatus(cfn, stackName, region, CREATEACTION, cli);
 }
 
 /**
@@ -138,7 +132,7 @@ const createNewTableAndSetScalingPolicy = async function createNewTableAndSetSca
     await dynamodb.createTable(createTableParams).promise()
     cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Created new table ${tableName} in ${region} region...`)}`)
     if (scalingPolicies.length) {
-      cli.consoleLog(`CreateGlobalTable: ${chalk.yellow('Adding auto scaling setting')}`);
+      cli.consoleLog(`CreateGlobalTable: ${chalk.yellow('Adding auto scaling setting(s)')}`);
       const writePolicy = scalingPolicies.find(p => p.PolicyName === WRITEAUOTSCALINGPOLICY);
       const readPolicy = scalingPolicies.find(p => p.PolicyName === READAUOTSCALINGPOLICY);
       if (writePolicy) {
@@ -183,7 +177,7 @@ const createNewTableAndSetScalingPolicy = async function createNewTableAndSetSca
         await appAutoScaling.putScalingPolicy(scalingParam).promise();
         cli.consoleLog(`CreateGlobalTable: ${chalk.yellow('Added Read Scaling policy')}`);
       }
-      cli.consoleLog(`CreateGlobalTable: ${chalk.yellow('Auto scaling policy added successfully')}`);
+      cli.consoleLog(`CreateGlobalTable: ${chalk.yellow('Auto scaling policy(s) added successfully')}`);
     }
   } catch (error) {
     if (error.code === 'ResourceInUseException') {
@@ -212,15 +206,16 @@ const getRegionsToCreateGlobalTablesIn = async function getRegionsToCreateGlobal
     const regionsGlobalTableExists = resp.GlobalTableDescription.ReplicationGroup.map(rg => rg.RegionName);
     const missingRegions = [region].concat(newRegions).filter(r => !regionsGlobalTableExists.includes(r));
     if (missingRegions.length === 0) {
-      cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Global table ${tableName} already exists in all the specified regions. Skipping creation...`)}`)
+      cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Global table association already exists in all the specified regions for table ${tableName}. Skipping creation...`)}`)
       return {missingRegions: [], addingNewRegions: false };
     }
+    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow('Global table association missing in some of the region(s)...')}`)
     return { missingRegions, addingNewRegions: true };
   } catch (e) {
     if (e.code !== 'GlobalTableNotFoundException') {
       throw e
     }
-    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow('Global table doesn\'t exist...')}`)
+    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow('Global table association doesn\'t exist in any of the regions...')}`)
     return { missingRegions: newRegions, addingNewRegions: false };
   }
 };
@@ -240,13 +235,11 @@ const getRegionsToCreateGlobalTablesIn = async function getRegionsToCreateGlobal
 const createGlobalTable = async function createGlobalTable(
   appAutoScaling, dynamodb, creds, region, tableName, newRegions, createStack, cli
 ) {
-
   const { missingRegions: regionsToUpdate, addingNewRegions } = await module.exports.getRegionsToCreateGlobalTablesIn(
     dynamodb, region, newRegions, tableName, cli
   );
 
   if (!regionsToUpdate.length) {
-    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Global table setup already in place.`)}`);
     return;
   }
 
@@ -329,7 +322,7 @@ const createGlobalTable = async function createGlobalTable(
       ReplicaUpdates: replicaUpdates,
     }
     await dynamodb.updateGlobalTable(param).promise();
-    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Created global table setup for ${tableName}...`)}`)
+    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Updated global table setup for ${tableName}...`)}`)
   }
 }
 
@@ -345,10 +338,31 @@ const getTableNamesFromStack = async function getTableNamesFromStack(cfn, stackN
   return tablesInStack.map(t => t.PhysicalResourceId);
 }
 
+/**
+ * 
+ * @param {Object} cfn AWS Cloudformation object
+ * @param {string} stackName Cloudformation stack name
+ * @param {string} region AWS region in which table(s) needs to be deleted
+ * @param {Object} cli Serverless cli object
+ */
 const removeStack = async function removeStack(cfn, stackName, region, cli) {
-  await cfn.deleteSatck({ StackName: stackName });
-  cli.consoleLog(`RemoveGlobalTable: ${chalk.yellow(`Stack ${stackName} removed successfully in region ${region}`)}`);
-}
+  await cfn.deleteStack({ StackName: stackName });
+  await module.exports.checkStackStatus(cfn, stackName, region, DELETEACTION, cli);
+};
+
+/**
+ * Delete the table(s) from region using sdk.
+ * @param {Object} dynamodb AWS Dynamidb object
+ * @param {Array} tableNames List of dynamodb tables to be deleted
+ * @param {string} region AWS region in which table(s) needs to be deleted
+ * @param {Object} cli Serverless cli object
+ */
+const deleteTablesFromRegion = async function deleteTablesFromRegion(dynamodb, tableNames, region, cli) {
+  for (let tableName of tableNames) {
+    await dynamodb.deleteTable({ TableName: tableName }).promise();
+    cli.consoleLog(`RemoveGlobalTable: ${chalk.yellow(`Table ${tableName} deleted successfully in ${region}`)}`);
+  }
+};
 
 /**
  * The create global table function.
@@ -439,6 +453,10 @@ const createGlobalDynamodbTable = async function createGlobalDynamodbTable(serve
   }
 };
 
+/**
+ * Remove global table(s).
+ * @param {Object} serverless The serverless
+ */
 const removeGlobalTable = async function removeGlobalTable(serverless) {
   try {
     serverless.cli.consoleLog(`RemoveGlobalTable: ${chalk.yellow('Starting removing global tables...')}`);
@@ -453,7 +471,7 @@ const removeGlobalTable = async function removeGlobalTable(serverless) {
     const globalTablesOptions = get(serverless, 'service.custom.globalTables');
     if (!globalTablesOptions || Object.keys(globalTablesOptions).length === 0) {
       cli.consoleLog(`RemoveGlobalTable: ${chalk.yellow('Global Table configuration missing, skipping removal...')}`)
-      return
+      return;
     }
 
     if (globalTablesOptions.createStack === false) {
@@ -461,8 +479,12 @@ const removeGlobalTable = async function removeGlobalTable(serverless) {
         region,
         credentials: awsCredentials.credentials
       });
-      const tableNames = await getTableNamesFromStack(cfn, stackName);
-      for (let newRegion in globalTablesOptions.regions) {
+      const tableNames = await module.exports.getTableNamesFromStack(cfn, stackName);
+      if (!tableNames.length) {
+        cli.consoleLog(`RemoveGlobalTable: ${chalk.yellow('No table created as part of this service, skipping removal...')}`)
+        return;
+      }
+      for (let newRegion of globalTablesOptions.regions) {
         const dynamodb = new AWS.DynamoDB({
           region: newRegion,
           credentials: awsCredentials.credentials
@@ -478,18 +500,19 @@ const removeGlobalTable = async function removeGlobalTable(serverless) {
         await module.exports.removeStack(cfn, stackName, newRegion, cli);
       }
     }
-    cli.consoleLog(`RemoveGlobalTable: ${chalk.yellow('Global Table removed successfully...')}`);
+    cli.consoleLog(`RemoveGlobalTable: ${chalk.yellow('Global Table(s) removed successfully...')}`);
   } catch (error) {
     throw error;
   }
 };
 
 module.exports = {
-  checkStackCreateUpdateStatus,
+  checkStackStatus,
   createGlobalDynamodbTable,
   createGlobalTable,
   createNewTableAndSetScalingPolicy,
   createUpdateCfnStack,
+  deleteTablesFromRegion,
   getRegionsToCreateGlobalTablesIn,
   getTableNamesFromStack,
   removeGlobalTable,
