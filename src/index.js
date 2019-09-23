@@ -8,7 +8,8 @@ class CreateGlobalDynamodbTable {
     this.serverless = serverless
     this.options = options
     this.hooks = {
-      'after:deploy:deploy': () => helper.createGlobalDynamodbTable(serverless)
+      'after:deploy:deploy': () => helper.createGlobalDynamodbTable(serverless),
+      'remove:remove': () => helper.removeGlobalTable(serverless, options)
     }
   }
 }
