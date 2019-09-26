@@ -44,28 +44,28 @@ resources:
         Tags:
           - Key: scheduler-ddb-thresholdminmax
             Value: ''
-    TestTable2:
-      Type: 'AWS::DynamoDB::Table'
-      Properties:
-        AttributeDefinitions:
-          -
-            AttributeName: 'Id'
-            AttributeType: 'S'
-        KeySchema:
-          -
-            AttributeName: 'Id'
-            KeyType: 'HASH'
-        PointInTimeRecoverySpecification:
-          PointInTimeRecoveryEnabled: true
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
-        StreamSpecification:
-          StreamViewType: NEW_AND_OLD_IMAGES
-        TableName: Test-Dynamodb-Table2
-        Tags:
-          - Key: scheduler-ddb-thresholdminmax
-            Value: ''
+    # TestTable2:
+    #   Type: 'AWS::DynamoDB::Table'
+    #   Properties:
+    #     AttributeDefinitions:
+    #       -
+    #         AttributeName: 'Id'
+    #         AttributeType: 'S'
+    #     KeySchema:
+    #       -
+    #         AttributeName: 'Id'
+    #         KeyType: 'HASH'
+    #     PointInTimeRecoverySpecification:
+    #       PointInTimeRecoveryEnabled: true
+    #     ProvisionedThroughput:
+    #       ReadCapacityUnits: 5
+    #       WriteCapacityUnits: 5
+    #     StreamSpecification:
+    #       StreamViewType: NEW_AND_OLD_IMAGES
+    #     TableName: Test-Dynamodb-Table2
+    #     Tags:
+    #       - Key: scheduler-ddb-thresholdminmax
+    #         Value: ''
 
     # WriteCapacityScalableTarget:
     #   Type: AWS::ApplicationAutoScaling::ScalableTarget

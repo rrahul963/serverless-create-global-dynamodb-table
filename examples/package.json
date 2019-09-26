@@ -10,7 +10,7 @@
   "license": "ISC",
   "devDependencies": {
     "serverless-attach-managed-policy": "0.0.7",
-    "serverless-create-global-dynamodb-table": "git+https://github.com/rrahul963/serverless-create-global-dynamodb-table.git#refactor"
+    "serverless-create-global-dynamodb-table": "git+https://github.com/rrahul963/serverless-create-global-dynamodb-table.git#remove-hook"
   },
   "dependencies": {
     "lodash.get": "^4.4.2"
