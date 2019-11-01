@@ -73,7 +73,7 @@ const createUpdateCfnStack = async function createUpdateCfnStack(cfn, template, 
     const createStackParams = {
       StackName: stackName,
       TemplateBody: JSON.stringify(template),
-      Capabilities: ['CAPABILITY_IAM']
+      Capabilities: ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM']
     };
     await cfn.createStack(createStackParams).promise();
   } catch (err) {
@@ -88,7 +88,7 @@ const createUpdateCfnStack = async function createUpdateCfnStack(cfn, template, 
       const updateStackParams = {
         StackName: stackName,
         TemplateBody: JSON.stringify(template),
-        Capabilities: ['CAPABILITY_IAM']
+        Capabilities: ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM']
       };
       await cfn.updateStack(updateStackParams).promise();
     } catch (err) {
