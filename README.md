@@ -34,4 +34,6 @@ _NOTE_: When creating global tables with `createStack: false`, any update the so
   - Updated the package to deploy the service stack in the new region(s) by default
   - Added support to setup auto-scaling on global tables when not using create stack feature.
   - Added unit-tests
+* 2.1.0
+  - Added support for PAY_PER_REQUEST billing mode for `createStack: true` mode
 

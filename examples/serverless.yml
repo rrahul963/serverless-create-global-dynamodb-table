@@ -2,24 +2,22 @@
 service: test-global-table-creation
 frameworkVersion: '>=1.1.0 <2.0.0'
 plugins:
-  - serverless-attach-managed-policy
   - serverless-create-global-dynamodb-table
 
 provider:
   name: aws
   runtime: nodejs8.10
-  region: ${opt:region, 'us-west-2'}
+  region: ${opt:region, 'us-east-1'}
   stage: ${opt:stage, 'dev'}
   tracing: true
   deploymentBucket:
-    name: das-deployment-packages-dev-us-west-2
-  managedPolicyArns: arn:aws:iam::403481480537:policy/appteam/fff000-iam-nonprod-wcm-01-TeamManagedPolicy-IP1WSES0IVD7
+    name: aws-deployment-packages-dev-us-east-1
 
 custom:
   globalTables:
     regions:
       - us-east-2
-    createStack: false
+    createStack: true
 
 resources:
   Resources:
@@ -36,9 +34,10 @@ resources:
             KeyType: 'HASH'
         PointInTimeRecoverySpecification:
           PointInTimeRecoveryEnabled: true
-        ProvisionedThroughput:
-          ReadCapacityUnits: 5
-          WriteCapacityUnits: 5
+        # ProvisionedThroughput:
+        #   ReadCapacityUnits: 5
+        #   WriteCapacityUnits: 5
+        BillingMode: PAY_PER_REQUEST
         StreamSpecification:
           StreamViewType: NEW_AND_OLD_IMAGES
         TableName: Test-Dynamodb-Table
