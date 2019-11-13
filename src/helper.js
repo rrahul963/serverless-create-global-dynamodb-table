@@ -262,7 +262,6 @@ const createGlobalTable = async function createGlobalTable(
     const createTableParams = {
       AttributeDefinitions: tableDef.Table.AttributeDefinitions,
       KeySchema: tableDef.Table.KeySchema,
-      ProvisionedThroughput: { ReadCapacityUnits, WriteCapacityUnits },
       TableName: tableName,
       StreamSpecification: {
         StreamEnabled: true,
@@ -271,6 +270,13 @@ const createGlobalTable = async function createGlobalTable(
       GlobalSecondaryIndexes: globalSecondaryIndexes.length ? globalSecondaryIndexes : undefined,
       LocalSecondaryIndexes: localSecondaryIndexes.length ? localSecondaryIndexes : undefined
     };
+
+    const billingModeSummary = tableDef.Table.BillingModeSummary;
+    if (billingModeSummary && billingModeSummary.BillingMode === 'PAY_PER_REQUEST') {
+      createTableParams.BillingMode = 'PAY_PER_REQUEST';
+    } else {
+      createTableParams.ProvisionedThroughput = { ReadCapacityUnits, WriteCapacityUnits }
+    }
 
     const tags = await dynamodb.listTagsOfResource({ ResourceArn: tableDef.Table.TableArn }).promise();
     createTableParams.Tags = tags.Tags;

@@ -506,7 +506,33 @@ describe('test createGlobalTable function', () => {
   const sandbox = sinon.createSandbox();
   let dynamodb;
   let aas;
+  let stubbedTable;
   beforeEach(() => {
+    stubbedTable = {
+      Table: {
+        ProvisionedThroughput: {
+          ReadCapacityUnits: 5,
+          WriteCapacityUnits: 5
+        },
+        GlobalSecondaryIndexes: [
+          {
+            IndexName: 'gsi',
+            KeySchema: '',
+            Projection: '',
+            ProvisionedThroughput: {}
+          }
+        ],
+        LocalSecondaryIndexes: [
+          {
+            IndexName: 'lsi',
+            KeySchema: '',
+            Projection: ''
+          }
+        ],
+        AttributeDefinitions: {},
+        KeySchema: '',
+      }
+    };
     dynamodb = new AWS.DynamoDB({ region: 'us-west-2' });
     aas = new AWS.ApplicationAutoScaling({ region: 'us-west-2' });
     sandbox.stub(plugin, 'getRegionsToCreateGlobalTablesIn').returns(Promise.resolve({
@@ -514,31 +540,7 @@ describe('test createGlobalTable function', () => {
       addingNewRegions: false
     }));
     sandbox.stub(dynamodb, 'describeTable').returns({
-      promise: () => { return Promise.resolve({
-        Table: {
-          ProvisionedThroughput: {
-            ReadCapacityUnits: 5,
-            WriteCapacityUnits: 5
-          },
-          GlobalSecondaryIndexes: [
-            {
-              IndexName: 'gsi',
-              KeySchema: '',
-              Projection: '',
-              ProvisionedThroughput: {}
-            }
-          ],
-          LocalSecondaryIndexes: [
-            {
-              IndexName: 'lsi',
-              KeySchema: '',
-              Projection: ''
-            }
-          ],
-          AttributeDefinitions: {},
-          KeySchema: '',
-        }
-      })}
+      promise: () => { return Promise.resolve(stubbedTable)}
     });
     sandbox.stub(dynamodb, 'listTagsOfResource').returns({
       promise: () => { return Promise.resolve({
@@ -585,11 +587,48 @@ describe('test createGlobalTable function', () => {
     sandbox.assert.notCalled(dynamodb.createGlobalTable);
     sandbox.assert.calledOnce(dynamodb.updateGlobalTable);
   });
-
-  it ('should create the table when create stack is false', async () => {
-    await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], false, serverless.cli);
-    sandbox.assert.calledOnce(dynamodb.describeTable);
-  });
+  
+  context("when create stack is false", () => {
+    it ('should create the table with ProvisionedThroughput if billing mode is not PAY_PER_REQUEST', async () => {
+      await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], false, serverless.cli);
+      sandbox.assert.calledOnce(dynamodb.describeTable);
+      plugin.createNewTableAndSetScalingPolicy.lastCall.args[2].should.eql({ AttributeDefinitions: {},
+        KeySchema: '',
+        TableName: 'test-table',
+        StreamSpecification:
+         { StreamEnabled: true, StreamViewType: 'NEW_AND_OLD_IMAGES' },
+        GlobalSecondaryIndexes:
+         [ { IndexName: 'gsi',
+             KeySchema: '',
+             Projection: '',
+             ProvisionedThroughput: {} } ],
+        LocalSecondaryIndexes: [ { IndexName: 'lsi', KeySchema: '', Projection: '' } ],
+        "ProvisionedThroughput": {
+              "ReadCapacityUnits": 5,
+              "WriteCapacityUnits": 5
+            },
+        Tags: {} });
+    });
+    
+    it ('should create the table without ProvisionedThroughput if billing mode is PAY_PER_REQUEST', async () => {
+      stubbedTable.Table.BillingModeSummary = { BillingMode: "PAY_PER_REQUEST" };
+      await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], false, serverless.cli);
+      sandbox.assert.calledOnce(dynamodb.describeTable);
+      plugin.createNewTableAndSetScalingPolicy.lastCall.args[2].should.eql({ AttributeDefinitions: {},
+        KeySchema: '',
+        TableName: 'test-table',
+        StreamSpecification:
+         { StreamEnabled: true, StreamViewType: 'NEW_AND_OLD_IMAGES' },
+        GlobalSecondaryIndexes:
+         [ { IndexName: 'gsi',
+             KeySchema: '',
+             Projection: '',
+             ProvisionedThroughput: {} } ],
+        LocalSecondaryIndexes: [ { IndexName: 'lsi', KeySchema: '', Projection: '' } ],
+        BillingMode: 'PAY_PER_REQUEST',
+        Tags: {} });
+    });
+  })
 });
 
 describe('test getTableNamesFromStack function', () => {
