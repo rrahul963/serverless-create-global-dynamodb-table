@@ -2,7 +2,9 @@
 service: test-global-table-creation
 frameworkVersion: '>=1.1.0 <2.0.0'
 plugins:
-  - serverless-create-global-dynamodb-table
+  - update-creds
+  # - before-deploy
+  # - serverless-create-global-dynamodb-table
 
 provider:
   name: aws
@@ -13,11 +15,11 @@ provider:
   deploymentBucket:
     name: aws-deployment-packages-dev-us-east-1
 
-custom:
-  globalTables:
-    regions:
-      - us-east-2
-    createStack: true
+# custom:
+#   globalTables:
+#     regions:
+#       - us-east-2
+#     createStack: true
 
 resources:
   Resources:

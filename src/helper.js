@@ -353,7 +353,7 @@ const createGlobalDynamodbTable = async function createGlobalDynamodbTable(serve
     const region = provider.getRegion();
     const serviceName = serverless.service.getServiceName();
     const stage = provider.getStage();
-    const stackName = `${serviceName}-${stage}`;
+    const stackName = serverless.service.provider.stackName || `${serviceName}-${stage}`;
     const cli = serverless.cli;
 
     const globalTablesOptions = get(serverless, 'service.custom.globalTables');
