@@ -12,6 +12,7 @@
     "serverless-create-global-dynamodb-table": "^2.0.0"
   },
   "dependencies": {
-    "lodash.get": "^4.4.2"
+    "lodash.get": "^4.4.2",
+    "serverless": "^1.58.0"
   }
 }
