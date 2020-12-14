@@ -414,7 +414,7 @@ describe('test getRegionsToCreateGlobalTablesIn function', () =>{
     'us-west-1',
     'us-east-1'
   ]
-  describe('no global table exists', () => {
+  describe('no global table exists for v1', () => {
     before(() => {
       const error = new Error('forced error');
       error.code = 'GlobalTableNotFoundException';
@@ -426,7 +426,26 @@ describe('test getRegionsToCreateGlobalTablesIn function', () =>{
       dynamodb.describeGlobalTable.restore();
     });
     it ('should return all the new regions', async () => {
-      const resp = await plugin.getRegionsToCreateGlobalTablesIn(dynamodb, 'us-west-2', newRegions, 'test-table', serverless.cli);
+      const resp = await plugin.getRegionsToCreateGlobalTablesIn(dynamodb, 'us-west-2', newRegions, 'test-table', 'v1', serverless.cli);
+      resp.missingRegions.should.have.length(2);
+      resp.missingRegions.should.eql(newRegions);
+      resp.addingNewRegions.should.eql(false);
+    });
+  });
+
+  describe('no global table exists for v2', () => {
+    before(() => {
+      const error = new Error('forced error');
+      error.code = 'GlobalTableNotFoundException';
+      sinon.stub(dynamodb, 'describeTable').returns({
+        promise: () => { return Promise.reject(error)}
+      });
+    });
+    after(() => {
+      dynamodb.describeTable.restore();
+    });
+    it ('should return all the new regions', async () => {
+      const resp = await plugin.getRegionsToCreateGlobalTablesIn(dynamodb, 'us-west-2', newRegions, 'test-table', 'v2', serverless.cli);
       resp.missingRegions.should.have.length(2);
       resp.missingRegions.should.eql(newRegions);
       resp.addingNewRegions.should.eql(false);
@@ -446,7 +465,7 @@ describe('test getRegionsToCreateGlobalTablesIn function', () =>{
     });
     it ('should return all the new regions', async () => {
       try {
-        await plugin.getRegionsToCreateGlobalTablesIn(dynamodb, 'us-west-2', newRegions, 'test-table', serverless.cli);
+        await plugin.getRegionsToCreateGlobalTablesIn(dynamodb, 'us-west-2', newRegions, 'test-table', 'v1', serverless.cli);
       } catch (err) {
         err.code.should.eql('RandomError');
       }
@@ -471,7 +490,7 @@ describe('test getRegionsToCreateGlobalTablesIn function', () =>{
       dynamodb.describeGlobalTable.restore();
     });
     it ('should return no region', async () => {
-      const resp = await plugin.getRegionsToCreateGlobalTablesIn(dynamodb, 'us-west-2', newRegions, 'test-table', serverless.cli);
+      const resp = await plugin.getRegionsToCreateGlobalTablesIn(dynamodb, 'us-west-2', newRegions, 'test-table', 'v1', serverless.cli);
       resp.missingRegions.should.have.length(0);
       resp.addingNewRegions.should.eql(false);
     });
@@ -494,7 +513,31 @@ describe('test getRegionsToCreateGlobalTablesIn function', () =>{
       dynamodb.describeGlobalTable.restore();
     });
     it ('should return no region', async () => {
-      const resp = await plugin.getRegionsToCreateGlobalTablesIn(dynamodb, 'us-west-2', newRegions, 'test-table', serverless.cli);
+      const resp = await plugin.getRegionsToCreateGlobalTablesIn(dynamodb, 'us-west-2', newRegions, 'test-table', 'v1', serverless.cli);
+      resp.missingRegions.should.have.length(1);
+      resp.missingRegions[0].should.eql('us-east-1');
+      resp.addingNewRegions.should.eql(true);
+    });
+  });
+
+  describe('global table exists in all the specified new regions for v2', () => {
+    before(() => {
+      sinon.stub(dynamodb, 'describeTable').returns({
+        promise: () => { return Promise.resolve({
+          Table: {
+            Replicas: [
+              { RegionName: 'us-west-1'},
+              { RegionName: 'us-west-2'}
+            ]
+          }
+        })}
+      });
+    });
+    after(() => {
+      dynamodb.describeTable.restore();
+    });
+    it ('should return no region', async () => {
+      const resp = await plugin.getRegionsToCreateGlobalTablesIn(dynamodb, 'us-west-2', newRegions, 'test-table', 'v2', serverless.cli);
       resp.missingRegions.should.have.length(1);
       resp.missingRegions[0].should.eql('us-east-1');
       resp.addingNewRegions.should.eql(true);
@@ -557,6 +600,12 @@ describe('test createGlobalTable function', () => {
     sandbox.stub(dynamodb, 'updateGlobalTable').returns({
       promise: () => { return Promise.resolve()}
     });
+    sandbox.stub(dynamodb, 'updateTable').returns({
+      promise: () => { return Promise.resolve()}
+    });
+    sandbox.stub(dynamodb, 'waitFor').returns({
+      promise: () => { return Promise.resolve()}
+    });
   });
   afterEach(() => {
     sandbox.restore();
@@ -568,12 +617,12 @@ describe('test createGlobalTable function', () => {
       missingRegions: [],
       addingNewRegions: false
     }));
-    await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], true, serverless.cli);
+    await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], 'v1',true, serverless.cli);
     sandbox.assert.notCalled(dynamodb.createGlobalTable);
   });
 
   it ('should create global table', async () => {
-    await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], true, serverless.cli);
+    await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], 'v1', true, serverless.cli);
     sandbox.assert.calledOnce(dynamodb.createGlobalTable);
   });
 
@@ -583,14 +632,14 @@ describe('test createGlobalTable function', () => {
       missingRegions: ['us-west-1'],
       addingNewRegions: true
     }));
-    await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], true, serverless.cli);
+    await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], 'v1', true, serverless.cli);
     sandbox.assert.notCalled(dynamodb.createGlobalTable);
     sandbox.assert.calledOnce(dynamodb.updateGlobalTable);
   });
   
   context("when create stack is false", () => {
     it ('should create the table with ProvisionedThroughput if billing mode is not PAY_PER_REQUEST', async () => {
-      await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], false, serverless.cli);
+      await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], 'v1', false, serverless.cli);
       sandbox.assert.calledOnce(dynamodb.describeTable);
       plugin.createNewTableAndSetScalingPolicy.lastCall.args[2].should.eql({ AttributeDefinitions: {},
         KeySchema: '',
@@ -612,7 +661,7 @@ describe('test createGlobalTable function', () => {
     
     it ('should create the table without ProvisionedThroughput if billing mode is PAY_PER_REQUEST', async () => {
       stubbedTable.Table.BillingModeSummary = { BillingMode: "PAY_PER_REQUEST" };
-      await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], false, serverless.cli);
+      await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], 'v1', false, serverless.cli);
       sandbox.assert.calledOnce(dynamodb.describeTable);
       plugin.createNewTableAndSetScalingPolicy.lastCall.args[2].should.eql({ AttributeDefinitions: {},
         KeySchema: '',
@@ -627,6 +676,13 @@ describe('test createGlobalTable function', () => {
         LocalSecondaryIndexes: [ { IndexName: 'lsi', KeySchema: '', Projection: '' } ],
         BillingMode: 'PAY_PER_REQUEST',
         Tags: {} });
+    });
+
+    it ('should create the table by using v2 version', async () => {
+      stubbedTable.Table.BillingModeSummary = { BillingMode: "PAY_PER_REQUEST" };
+      await plugin.createGlobalTable(aas, dynamodb, serverless.getProvider().getCredentials(), 'us-west-2', 'test-table', ['us-east-2'], 'v2', false, serverless.cli);
+      sandbox.assert.calledOnce(dynamodb.updateTable);
+      sandbox.assert.calledTwice(dynamodb.waitFor);
     });
   })
 });
