@@ -1,6 +1,6 @@
 const AWS = require('aws-sdk')
 const chalk = require('chalk')
-const get = require('lodash/get');
+const get = require('lodash.get');
 
 const WRITEAUOTSCALINGPOLICY = 'WriteAutoScalingPolicy';
 const READAUOTSCALINGPOLICY = 'ReadAutoScalingPolicy';

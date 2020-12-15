@@ -21,7 +21,7 @@ plugins:
 ```yaml
 custom:
   globalTables:
-    version: v1 # optional, please use 'v1' for 2017.11.29 or 'v2' for 2019.11.21 version creation
+    version: v1 # optional, default is 'v1' (2017.11.29), please use 'v2' for (2019.11.21) version creation
     regions: # list of regions in which you want to set up global tables
       - region-1
       - region-2
