@@ -184,17 +184,29 @@ const createNewTableAndSetScalingPolicy = async function createNewTableAndSetSca
  * @param {string} region AWS region in which source table exists
  * @param {Array} newRegions List of regions in which global tables needs to be created
  * @param {string} tableName Dynamodb table name
+ * @param {string} version It's version of global table needs to be setup
  * @param {Object} cli Serverless cli object
  * @returns {Object} List of regions in which gloabl table needs to be created and flag indicating
  * if some global table setup already exists.
  */
 const getRegionsToCreateGlobalTablesIn = async function getRegionsToCreateGlobalTablesIn(
-  dynamodb, region, newRegions, tableName, cli
+  dynamodb, region, newRegions, tableName, version, cli
 ) {
   try {
-    const resp = await dynamodb.describeGlobalTable({ GlobalTableName: tableName }).promise()
-    const regionsGlobalTableExists = resp.GlobalTableDescription.ReplicationGroup.map(rg => rg.RegionName);
-    const missingRegions = [region].concat(newRegions).filter(r => !regionsGlobalTableExists.includes(r));
+    let regionsGlobalTableExists = [];
+    let missingRegions = []
+    if (version === 'v2') {
+      let resp = await dynamodb.describeTable({ TableName: tableName }).promise()
+      if (resp.Table.Replicas !== undefined) {
+        regionsGlobalTableExists = resp.Table.Replicas.map(rg => rg.RegionName);
+      }
+      missingRegions = newRegions.filter(r => !regionsGlobalTableExists.includes(r));
+    } else {
+      let resp = await dynamodb.describeGlobalTable({ GlobalTableName: tableName }).promise()
+      regionsGlobalTableExists = resp.GlobalTableDescription.ReplicationGroup.map(rg => rg.RegionName);
+      missingRegions = [region].concat(newRegions).filter(r => !regionsGlobalTableExists.includes(r));
+    }
+
     if (missingRegions.length === 0) {
       cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Global table ${tableName} already exists in all the specified regions. Skipping creation...`)}`)
       return {missingRegions: [], addingNewRegions: false };
@@ -218,23 +230,23 @@ const getRegionsToCreateGlobalTablesIn = async function getRegionsToCreateGlobal
  * @param {string} region AWS region in which source table exists
  * @param {string} tableName Dymanodb table name
  * @param {Array} newRegions List of regions in which global table needs to be setup
+ * @param {string} version It's version of global table needs to be setup
  * @param {boolean} createStack flag indicating if the tables were created using cloudformation
  * @param {Object} cli Serverless cli object
  */
 const createGlobalTable = async function createGlobalTable(
-  appAutoScaling, dynamodb, creds, region, tableName, newRegions, createStack, cli
+  appAutoScaling, dynamodb, creds, region, tableName, newRegions, version, createStack, cli
 ) {
 
   const { missingRegions: regionsToUpdate, addingNewRegions } = await module.exports.getRegionsToCreateGlobalTablesIn(
-    dynamodb, region, newRegions, tableName, cli
+    dynamodb, region, newRegions, tableName, version, cli
   );
-
   if (!regionsToUpdate.length) {
     cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Global table setup already in place.`)}`);
     return;
   }
 
-  if (!createStack) {
+  if (!createStack && version !== 'v2') {
     const tableDef = await dynamodb.describeTable({ TableName: tableName }).promise()
     const { ReadCapacityUnits, WriteCapacityUnits } = tableDef.Table.ProvisionedThroughput
     const { GlobalSecondaryIndexes, LocalSecondaryIndexes } = tableDef.Table;
@@ -301,6 +313,16 @@ const createGlobalTable = async function createGlobalTable(
     }));
   }
 
+  if (version === 'v2') {
+    await module.exports.createGlobalTableV2(dynamodb, tableName, regionsToUpdate, cli);
+  } else {
+    await module.exports.createGlobalTableV1(dynamodb, tableName, region, regionsToUpdate, addingNewRegions, cli);
+  }
+
+}
+
+const createGlobalTableV1 = async function createGlobalTableV1(dynamodb, tableName, region, regionsToUpdate, addingNewRegions, cli) {
+  cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Create global table setup (Version 2017.11.29) for ${tableName}...`)}`)
   if (!addingNewRegions) {
     const replicationGroup = [{ RegionName: region }]
     regionsToUpdate.forEach(r => replicationGroup.push({ RegionName: r }))
@@ -310,7 +332,6 @@ const createGlobalTable = async function createGlobalTable(
       ReplicationGroup: replicationGroup,
     }
     await dynamodb.createGlobalTable(param).promise()
-    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Created global table setup for ${tableName}...`)}`)
   } else {
     const replicaUpdates = [];
     regionsToUpdate.forEach(r => replicaUpdates.push({ Create:{ RegionName: r }}));
@@ -319,8 +340,25 @@ const createGlobalTable = async function createGlobalTable(
       ReplicaUpdates: replicaUpdates,
     }
     await dynamodb.updateGlobalTable(param).promise();
-    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Created global table setup for ${tableName}...`)}`)
   }
+  cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Created global table setup (Version 2017.11.29) for ${tableName}...`)}`)
+}
+
+const createGlobalTableV2 = async function createGlobalTableV2(dynamodb, tableName, regionsToUpdate, cli) {
+  cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Create global table setup (Version 2019.11.21) for ${tableName}...`)}`)
+  for (const region of regionsToUpdate) {
+    const params = {
+      TableName: tableName,
+      ReplicaUpdates: [{ Create:{ RegionName: region }}],
+    }
+    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Wait for ${tableName} replication available...`)}`)
+    await dynamodb.waitFor('tableExists', {TableName: tableName}).promise(); // it's gonna wait for "Active" status
+    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`Start creating a replica for ${tableName} in ${region}`)}`)
+    await dynamodb.updateTable(params).promise();
+    await dynamodb.waitFor('tableExists', {TableName: tableName}).promise(); // it's gonna wait for "Active" status
+    cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`The replica for ${tableName} in ${region} has been created successfully`)}`)
+  }
+  cli.consoleLog(`CreateGlobalTable: ${chalk.yellow(`The global table setup (Version 2019.11.21) for ${tableName} has been created successfully`)}`)
 }
 
 /**
@@ -392,6 +430,7 @@ const createGlobalDynamodbTable = async function createGlobalDynamodbTable(serve
           region,
           tableName,
           globalTablesOptions.regions,
+          globalTablesOptions.version,
           false,
           cli
         )
@@ -414,6 +453,7 @@ const createGlobalDynamodbTable = async function createGlobalDynamodbTable(serve
           region,
           tableName,
           globalTablesOptions.regions,
+          globalTablesOptions.version,
           true,
           cli
         )
@@ -428,6 +468,8 @@ module.exports = {
   checkStackCreateUpdateStatus,
   createGlobalDynamodbTable,
   createGlobalTable,
+  createGlobalTableV1,
+  createGlobalTableV2,
   createNewTableAndSetScalingPolicy,
   createUpdateCfnStack,
   getRegionsToCreateGlobalTablesIn,
