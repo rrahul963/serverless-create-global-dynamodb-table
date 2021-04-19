@@ -1,6 +1,6 @@
 {
   "name": "serverless-create-global-dynamodb-table",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "serverless plugin that would create global dynamodb tables for specified tables",
   "main": "src/index.js",
   "scripts": {

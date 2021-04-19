@@ -368,9 +368,15 @@ const createGlobalTableV2 = async function createGlobalTableV2(dynamodb, tableNa
  * @returns {Array} List of table names.
  */
 const getTableNamesFromStack = async function getTableNamesFromStack(cfn, stackName){
-  const resp = await cfn.describeStackResources({ StackName: stackName }).promise();
-  const tablesInStack = resp.StackResources.filter(r => r.ResourceType === 'AWS::DynamoDB::Table');
-  return tablesInStack.map(t => t.PhysicalResourceId);
+  let resp;
+  let nextToken;
+  const tablesInStack = [];
+  do {
+    resp = await cfn.listStackResources({ StackName: stackName, NextToken: nextToken }).promise();
+    nextToken = resp.NextToken;
+    tablesInStack.push(...resp.StackResourceSummaries.filter(r => r.ResourceType === 'AWS::DynamoDB::Table'));
+  } while (nextToken)
+  return tablesInStack.filter(t => t.PhysicalResourceId !== null).map(t => t.PhysicalResourceId);
 }
 
 /**
