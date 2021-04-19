@@ -691,9 +691,9 @@ describe('test getTableNamesFromStack function', () => {
   let cfn;
   before(() => {
     cfn = new AWS.CloudFormation();
-    sinon.stub(cfn, 'describeStackResources').returns({
+    sinon.stub(cfn, 'listStackResources').returns({
       promise: () => { return Promise.resolve({
-        StackResources: [
+        StackResourceSummaries: [
           {
             ResourceType: 'AWS::DynamoDB::Table',
             PhysicalResourceId: 'test-table'
@@ -707,11 +707,35 @@ describe('test getTableNamesFromStack function', () => {
     });
   });
   after(() => {
-    cfn.describeStackResources.restore();
+    cfn.listStackResources.restore();
   });
   it ('should return test-table', async () => {
     const resp = await plugin.getTableNamesFromStack(cfn, 'test-stack');
     resp.should.have.length(1);
     resp[0].should.eql('test-table');
+  });
+});
+
+describe('test getTableNamesFromStack function no DynamoDb found', () => {
+  let cfn;
+  before(() => {
+    cfn = new AWS.CloudFormation();
+    sinon.stub(cfn, 'listStackResources').returns({
+      promise: () => { return Promise.resolve({
+        StackResourceSummaries: [
+          {
+            ResourceType: 'AWS::S3::Bucket',
+            PhysicalResourceId: 'test-bucket'
+          }
+        ]
+      }) }
+    });
+  });
+  after(() => {
+    cfn.listStackResources.restore();
+  });
+  it ('should return test-table', async () => {
+    const resp = await plugin.getTableNamesFromStack(cfn, 'test-stack');
+    resp.should.have.length(0);
   });
 });
