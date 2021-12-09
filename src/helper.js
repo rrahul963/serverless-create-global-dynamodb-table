@@ -443,10 +443,16 @@ const createGlobalDynamodbTable = async function createGlobalDynamodbTable(serve
       }
     } else {
       const cfnTemplate = serverless.service.provider.compiledCloudFormationTemplate;
+      let stackTags;
+      if (serverless.service.provider.stackTags) {
+        const providerTags = serverless.service.provider.stackTags;
+        stackTags = Object.keys(providerTags).map(tag => ({Key: tag, Value: providerTags[tag]}))
+      }
       for (let newRegion of globalTablesOptions.regions) {
         let cfn = new AWS.CloudFormation({
           region: newRegion,
-          credentials: awsCredentials.credentials
+          credentials: awsCredentials.credentials,
+          params: { Tags: stackTags },
         })
         await module.exports.createUpdateCfnStack(cfn, cfnTemplate, stackName, newRegion, cli);
       }
