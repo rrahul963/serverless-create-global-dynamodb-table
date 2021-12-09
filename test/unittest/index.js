@@ -16,8 +16,7 @@ const provider = {
   },
   getStage: () => {
     return 'dev'
-  },
-  stackTags: { tag1: 'value1', tag2: 'value2' }
+  }
 }
 const serverless = {
   getProvider: () => {
