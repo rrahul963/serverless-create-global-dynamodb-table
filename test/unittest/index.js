@@ -61,7 +61,7 @@ describe('test createGlobalDynamodbTable function', () => {
   it ('should return since no table are present in the stack', async ()=> {
     serverless.service.custom.globalTables = {
       regions: ['us-east-2'],
-      enable: true,
+      enable: 'true',
     };
     plugin.getTableNamesFromStack.restore();
     sandbox.stub(plugin, 'getTableNamesFromStack').returns(Promise.resolve([]));
@@ -74,7 +74,7 @@ describe('test createGlobalDynamodbTable function', () => {
     serverless.service.custom.globalTables = {
       regions: ['us-east-2'],
       createStack: false,
-      enable: true,
+      enable: 'true',
     };
     await plugin.createGlobalDynamodbTable(serverless);
     sandbox.assert.calledOnce(plugin.createGlobalTable);
@@ -85,7 +85,7 @@ describe('test createGlobalDynamodbTable function', () => {
   it ('should create the tables with cfn', async ()=> {
     serverless.service.custom.globalTables = {
       regions: ['us-east-2'],
-      enable: true,
+      enable: 'true',
     };
     await plugin.createGlobalDynamodbTable(serverless);
     sandbox.assert.calledOnce(plugin.createGlobalTable);
