@@ -258,7 +258,12 @@ const createGlobalTable = async function createGlobalTable(
           IndexName: gsi.IndexName,
           KeySchema: gsi.KeySchema,
           Projection: gsi.Projection,
-          ProvisionedThroughput: gsi.ProvisionedThroughput
+          ...((gsi.ProvisionedThroughput.ReadCapacityUnits !== 0 || gsi.ProvisionedThroughput.WriteCapacityUnits !== 0) && {
+            ProvisionedThroughput: {
+              ReadCapacityUnits: gsi.ProvisionedThroughput.ReadCapacityUnits,
+              WriteCapacityUnits: gsi.ProvisionedThroughput.WriteCapacityUnits,
+            },
+          }),
         })
       })
     }
